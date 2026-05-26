@@ -242,11 +242,12 @@ def build_backtest_panel(prices, forward_period=21):
     """
     daily_ret = prices.pct_change()
 
-    # Month-end dates (pandas 2.x uses "ME", older uses "M")
-    try:
-        month_end_idx = prices.resample("ME").last().index
-    except ValueError:
-        month_end_idx = prices.resample("M").last().index
+    # Last actual trading day of each month (avoids KeyError from calendar
+    # month-end dates that may not exist in the trading calendar).
+    month_labels = prices.index.to_period("M")
+    month_end_idx = prices.groupby(month_labels).apply(
+        lambda g: g.index[-1]
+    ).values
 
     records = []
     for date in month_end_idx:
@@ -421,7 +422,11 @@ def compute_period_metrics(backtest_results):
             "n": len(valid),
         })
 
-    return pd.DataFrame(metrics)
+    return pd.DataFrame(
+        metrics,
+        columns=["date", "ic", "hit_rate", "quintile_spread",
+                 "q_high", "q_low", "n"],
+    )
 
 
 def compute_cumulative_ls(backtest_results, n_bins=5):

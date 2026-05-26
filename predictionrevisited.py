@@ -247,7 +247,7 @@ def co_occurrence(x_i, x_bar, stdev, scalar_output_for_pair=False):
                 co_occur[k,l] = z_i[0,k] * z_i[0,l] / avg_sq_z[k,l]
                 co_occur[l,k] = co_occur[k,l] # fill in symmetrically
                 
-    return co_occur, avg_sq_z
+    return co_occur, avg_sq_z 
     
 
 
@@ -788,7 +788,7 @@ def predict_df(attributes_df, circumstances_df, outcomes_df,
                                             )
     
     # package results as dataframe
-    prediction_results = {'yhat': np.squeeze(yhats)}
+    prediction_results = {'yhat': np.atleast_1d(np.squeeze(yhats))}
     obs_relevance = {
         'relevance': pred_many_details.get('relevance'),
         'similarity': pred_many_details.get('sim_it'),
@@ -796,11 +796,11 @@ def predict_df(attributes_df, circumstances_df, outcomes_df,
         'info_t': pred_many_details.get('info_t')
         }
 
-    prediction_results['fit'] = np.squeeze(pred_many_details.get('fits'))
-    prediction_results['agreement'] = np.squeeze(pred_many_details.get('agreements'))
-    prediction_results['outlier_influence'] = np.squeeze(pred_many_details.get('outlier_influences'))
-    prediction_results['precision'] = np.squeeze(pred_many_details.get('precisions'))
-    prediction_results['info_t'] = np.squeeze(pred_many_details.get('info_ts'))
+    prediction_results['fit'] = np.atleast_1d(np.squeeze(pred_many_details.get('fits')))
+    prediction_results['agreement'] = np.atleast_1d(np.squeeze(pred_many_details.get('agreements')))
+    prediction_results['outlier_influence'] = np.atleast_1d(np.squeeze(pred_many_details.get('outlier_influences')))
+    prediction_results['precision'] = np.atleast_1d(np.squeeze(pred_many_details.get('precisions')))
+    prediction_results['info_t'] = np.atleast_1d(np.squeeze(pred_many_details.get('info_ts')))
     
     predictions_df = pd.DataFrame(prediction_results)
     
@@ -870,7 +870,7 @@ def fit(pred_details, shortcut=False, yhat=False):
         for i in range(n):
             for j in range(n):
                 to_add = (lambda_sq / (n-1))**2 * z_r[i] * z_r[j] * z_y[i] * z_y[j]
-                if i is j:
+                if i == j:
                     outlier_influence = outlier_influence + to_add
                 else:
                     agreement = agreement + to_add

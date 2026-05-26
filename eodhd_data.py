@@ -90,8 +90,13 @@ def fetch_multiple(symbols, exchange="US", api_token=None,
     """
     frames = {}
     for sym in symbols:
-        df = fetch_eod(sym, exchange, api_token, from_date, to_date, period)
-        frames[sym] = df.set_index("date")["adjusted_close"]
+        try:
+            df = fetch_eod(sym, exchange, api_token, from_date, to_date, period)
+            frames[sym] = df.set_index("date")["adjusted_close"]
+        except Exception:
+            continue
+    if not frames:
+        raise ValueError("No data retrieved for any of the requested tickers.")
     prices = pd.DataFrame(frames).dropna()
     return prices
 

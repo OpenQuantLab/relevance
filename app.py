@@ -48,6 +48,7 @@ DEFAULT_PREDICTIONS = pd.DataFrame(
 
 app = Dash(__name__)
 app.title = "Prediction Revisited"
+app.config.suppress_callback_exceptions = True
 
 # ---------------------------------------------------------------------------
 # Layout
@@ -1235,9 +1236,9 @@ def _run_backtest_study(symbols, exchange, token, from_date, to_date,
     cum = repl.compute_cumulative_ls(bt)
 
     n_periods = len(metrics)
-    avg_ic = metrics["ic"].mean()
-    avg_hr = metrics["hit_rate"].mean()
-    avg_spread = metrics["quintile_spread"].mean()
+    avg_ic = metrics["ic"].mean() if n_periods else 0
+    avg_hr = metrics["hit_rate"].mean() if n_periods else 0
+    avg_spread = metrics["quintile_spread"].mean() if n_periods else 0
     n_tickers = bt["ticker"].nunique()
 
     status = html.Div(
