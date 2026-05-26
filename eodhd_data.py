@@ -12,6 +12,7 @@ import requests
 
 
 EODHD_BASE_URL = "https://eodhd.com/api/eod"
+DEFAULT_API_TOKEN = "69bb99ebc59573.31118566"
 
 
 def fetch_eod(symbol, exchange="US", api_token=None,
@@ -39,11 +40,7 @@ def fetch_eod(symbol, exchange="US", api_token=None,
     pd.DataFrame
         Columns: date, open, high, low, close, adjusted_close, volume.
     """
-    token = api_token or os.environ.get("EODHD_API_TOKEN", "")
-    if not token:
-        raise ValueError(
-            "EODHD API token required. Pass api_token= or set EODHD_API_TOKEN env var."
-        )
+    token = api_token or os.environ.get("EODHD_API_TOKEN", "") or DEFAULT_API_TOKEN
 
     ticker = f"{symbol}.{exchange}"
     params = {"api_token": token, "fmt": "json", "period": period}
@@ -240,12 +237,7 @@ EODHD_FUNDAMENTALS_URL = "https://eodhd.com/api/v1.1/fundamentals"
 
 
 def _resolve_token(api_token):
-    token = api_token or os.environ.get("EODHD_API_TOKEN", "")
-    if not token:
-        raise ValueError(
-            "EODHD API token required. Pass api_token= or set EODHD_API_TOKEN env var."
-        )
-    return token
+    return api_token or os.environ.get("EODHD_API_TOKEN", "") or DEFAULT_API_TOKEN
 
 
 def fetch_fundamentals(symbol, exchange="US", api_token=None, filters=None):
