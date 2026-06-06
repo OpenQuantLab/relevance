@@ -561,7 +561,8 @@ def render_market_tab():
                                 dcc.Input(
                                     id="eodhd-api-token",
                                     type="password",
-                                    placeholder="Your API token (or set EODHD_API_TOKEN env var)",
+                                    value=eodhd_data.DEFAULT_API_TOKEN,
+                                    placeholder="Your API token",
                                     style=input_style,
                                 ),
                             ]),
@@ -937,7 +938,8 @@ def render_paper_tab():
                                 dcc.Input(
                                     id="paper-api-token",
                                     type="password",
-                                    placeholder="Token (or set EODHD_API_TOKEN env var)",
+                                    value=eodhd_data.DEFAULT_API_TOKEN,
+                                    placeholder="Your API token",
                                     style=input_style,
                                 ),
                             ]),
