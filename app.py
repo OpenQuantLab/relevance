@@ -46,9 +46,16 @@ DEFAULT_PREDICTIONS = pd.DataFrame(
 # App setup
 # ---------------------------------------------------------------------------
 
-app = Dash(__name__)
+app = Dash(
+    __name__,
+    requests_pathname_prefix="/projects/relevance/",
+    routes_pathname_prefix="/projects/relevance/",
+)
 app.title = "Prediction Revisited"
 app.config.suppress_callback_exceptions = True
+
+# WSGI entry point for gunicorn: gunicorn app:server
+server = app.server
 
 # ---------------------------------------------------------------------------
 # Layout
@@ -650,6 +657,36 @@ def render_market_tab():
                             ]),
                         ],
                     ),
+                    html.Div(style={"height": "12px"}),
+                    html.Div(
+                        style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "16px"},
+                        children=[
+                            html.Div([
+                                html.Label("Feature Types", style={"fontWeight": "500", "fontSize": "13px"}),
+                                dcc.Checklist(
+                                    id="eodhd-feature-types",
+                                    options=[
+                                        {"label": f" {v}", "value": k}
+                                        for k, v in eodhd_data.AVAILABLE_FEATURE_TYPES.items()
+                                    ],
+                                    value=["return", "vol"],
+                                    style={"fontSize": "13px"},
+                                ),
+                            ]),
+                            html.Div([
+                                html.Label("Lookback Windows (days)", style={"fontWeight": "500", "fontSize": "13px"}),
+                                dcc.Checklist(
+                                    id="eodhd-windows",
+                                    options=[
+                                        {"label": f" {w}d", "value": w}
+                                        for w in eodhd_data.AVAILABLE_WINDOWS
+                                    ],
+                                    value=[21],
+                                    style={"fontSize": "13px"},
+                                ),
+                            ]),
+                        ],
+                    ),
                     html.Div(style={"height": "16px"}),
                     html.Button(
                         "Fetch & Predict",
@@ -690,6 +727,8 @@ def render_market_tab():
     State("eodhd-from-date", "value"),
     State("eodhd-to-date", "value"),
     State("eodhd-horizon", "value"),
+    State("eodhd-feature-types", "value"),
+    State("eodhd-windows", "value"),
     State("thresh-slider", "value"),
     State("most-radio", "value"),
     State("pct-thresh-radio", "value"),
@@ -698,7 +737,8 @@ def render_market_tab():
 )
 def fetch_and_predict_market(
     n_clicks, api_token, exchange, feature_tickers_str, target_ticker,
-    from_date, to_date, horizon, thresh, most_val, pct_val, pairwise_val,
+    from_date, to_date, horizon, feature_types, windows,
+    thresh, most_val, pct_val, pairwise_val,
 ):
     card_style = {
         "backgroundColor": "white",
@@ -739,6 +779,8 @@ def fetch_and_predict_market(
         attributes_df, outcomes_df, circumstances_df, info = eodhd_data.build_prediction_dataset(
             prices, target_ticker, target_horizon=horizon,
             feature_tickers=feature_tickers,
+            windows=windows or [21],
+            feature_types=feature_types or ["return", "vol"],
         )
 
         most = most_val == "most"
@@ -770,7 +812,8 @@ def fetch_and_predict_market(
             children=[
                 html.Strong("Success. "),
                 f"Loaded {info['n_observations']} observations with "
-                f"{info['n_features']} features. "
+                f"{info['n_features']} features "
+                f"({', '.join(info['feature_names'])}). "
                 f"Date range: {info['dates']['obs_start']} to {info['dates']['obs_end']}.",
             ],
         )
@@ -1209,13 +1252,16 @@ def _build_cross_sectional_results(loo, full, obs_rel, quintiles, card):
                 style_table={"overflowX": "auto"},
                 style_cell={"fontSize": "13px", "padding": "8px"},
                 style_header={"fontWeight": "600", "backgroundColor": "#f1f3f5"},
-                style_data_conditional=[{
-                    "if": {"filter_query": "{predicted_return} > 0", "column_id": "predicted_return"},
-                    "color": "#155724",
-                }, {
-                    "if": {"filter_query": "{predicted_return} < 0", "column_id": "predicted_return"},
-                    "color": "#721c24",
-                }],
+                style_data_conditional=[
+                    {
+                        "if": {"filter_query": "{predicted_return} > 0", "column_id": "predicted_return"},
+                        "color": "#155724",
+                    },
+                    {
+                        "if": {"filter_query": "{predicted_return} < 0", "column_id": "predicted_return"},
+                        "color": "#721c24",
+                    },
+                ],
             ),
         ],
     ))
@@ -1386,4 +1432,4 @@ def _build_backtest_results(bt, metrics, cum, card):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8000)
+    app.run(debug=True, host="0.0.0.0", port=8000)

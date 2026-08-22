@@ -98,7 +98,15 @@ def fetch_multiple(symbols, exchange="US", api_token=None,
     return prices
 
 
-def compute_features(prices, windows=None):
+AVAILABLE_FEATURE_TYPES = {
+    "return": "Rolling Return",
+    "vol": "Rolling Volatility",
+}
+
+AVAILABLE_WINDOWS = [5, 21, 63, 126, 252]
+
+
+def compute_features(prices, windows=None, feature_types=None):
     """
     Compute feature attributes from a price DataFrame for use with the
     prediction model.
@@ -112,7 +120,10 @@ def compute_features(prices, windows=None):
     prices : pd.DataFrame
         Columns are tickers, index is datetime, values are adjusted close.
     windows : list of int or None
-        Lookback windows in trading days. Default [5, 21, 63].
+        Lookback windows in trading days. Default [21].
+    feature_types : list of str or None
+        Which feature types to compute. Subset of AVAILABLE_FEATURE_TYPES keys.
+        Default ["return", "vol"].
 
     Returns
     -------
@@ -120,19 +131,26 @@ def compute_features(prices, windows=None):
         Multi-level columns: (ticker, feature). Rows are dates.
     """
     if windows is None:
-        windows = [5, 21, 63]
+        windows = [21]
+    if feature_types is None:
+        feature_types = ["return", "vol"]
 
     daily_returns = prices.pct_change()
     feature_frames = {}
 
     for sym in prices.columns:
         for w in windows:
-            feature_frames[(sym, f"return_{w}d")] = (
-                prices[sym].pct_change(w)
-            )
-            feature_frames[(sym, f"vol_{w}d")] = (
-                daily_returns[sym].rolling(w).std()
-            )
+            if "return" in feature_types:
+                feature_frames[(sym, f"return_{w}d")] = (
+                    prices[sym].pct_change(w)
+                )
+            if "vol" in feature_types:
+                feature_frames[(sym, f"vol_{w}d")] = (
+                    daily_returns[sym].rolling(w).std()
+                )
+
+    if not feature_frames:
+        raise ValueError("No features selected. Choose at least one feature type and window.")
 
     features = pd.DataFrame(feature_frames).dropna()
     features.columns = pd.MultiIndex.from_tuples(
@@ -142,7 +160,8 @@ def compute_features(prices, windows=None):
 
 
 def build_prediction_dataset(prices, target_ticker, target_horizon=21,
-                             feature_tickers=None, windows=None):
+                             feature_tickers=None, windows=None,
+                             feature_types=None):
     """
     Build attributes, outcomes, and circumstances DataFrames suitable for
     predictionrevisited.predict_df().
@@ -164,7 +183,9 @@ def build_prediction_dataset(prices, target_ticker, target_horizon=21,
     feature_tickers : list of str or None
         Tickers to use as feature sources. Default: all columns in prices.
     windows : list of int or None
-        Feature lookback windows. Default [5, 21, 63].
+        Feature lookback windows. Default [21].
+    feature_types : list of str or None
+        Which feature types to compute. Default ["return", "vol"].
 
     Returns
     -------
@@ -180,7 +201,7 @@ def build_prediction_dataset(prices, target_ticker, target_horizon=21,
     if feature_tickers is None:
         feature_tickers = list(prices.columns)
 
-    features = compute_features(prices, windows)
+    features = compute_features(prices, windows, feature_types)
 
     # Forward return of the target ticker
     fwd_return = prices[target_ticker].pct_change(target_horizon).shift(-target_horizon)

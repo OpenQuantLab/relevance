@@ -228,7 +228,8 @@ def co_occurrence(x_i, x_bar, stdev, scalar_output_for_pair=False):
     K = x_i.shape[0]
     
     # standardize x_i and relevance to z-scores
-    z_i = np.atleast_2d(np.divide(x_i - x_bar, stdev))
+    safe_stdev = np.where(stdev == 0, 1.0, stdev)
+    z_i = np.atleast_2d(np.divide(x_i - x_bar, safe_stdev))
     
     # compute either a scalar or a matrix
     if K == 1:
@@ -585,10 +586,33 @@ def predict(X, x_t, y, thresh=0.5, most=True, pct_thresh=True,
         else:
             include = rel <=thresh
     n = np.sum(include)
-    
+
+    if n < 2:
+        # Not enough relevant observations for partial-sample regression
+        yhat = y_bar
+        pred_details = {
+            'N': N, 'n': n, 'K': K, 'y': y,
+            'relevance': rel, 'include': include,
+            'lambda_sq': np.array([[np.nan]]),
+            'sim_it': sim_it, 'info_i': info_i, 'info_t': info_t,
+            'fit': np.array([[np.nan]]),
+        }
+        return yhat, pred_details
+
     full_var = np.sum(np.power(rel, 2)) / (N-1) # same as np.var (note that average(rel) always equals zero)
     part_var = np.sum(np.power(include * rel, 2)) / (n-1)
-        
+
+    if part_var == 0:
+        yhat = y_bar
+        pred_details = {
+            'N': N, 'n': n, 'K': K, 'y': y,
+            'relevance': rel, 'include': include,
+            'lambda_sq': np.array([[np.nan]]),
+            'sim_it': sim_it, 'info_i': info_i, 'info_t': info_t,
+            'fit': np.array([[np.nan]]),
+        }
+        return yhat, pred_details
+
     lambda_sq = full_var / part_var
     if predict_binary_outcome is False: # this is traditional prediction
         yhat = y_bar + (lambda_sq / (n-1)) * np.matmul(
@@ -846,9 +870,15 @@ def fit(pred_details, shortcut=False, yhat=False):
             raise ValueError('yhat is a required input when shortcut is used.')
         y_bar = average(y)
         spread_y = spread(y)
+        if np.any(spread_y == 0):
+            f = np.array([[np.nan]])
+            fit_details = {'agreement': np.nan, 'outlier_influence': np.nan,
+                           'fit_scaled': np.nan, 'agreement_scaled': np.nan,
+                           'outlier_influence_scaled': np.nan}
+            return f, fit_details
         info_y = informativeness(yhat, y_bar, 1/spread_y)
         info_x_t = info_t[0]
-        f = info_y / info_x_t
+        f = info_y / info_x_t if info_x_t != 0 else np.array([[np.nan]])
         agreement = np.nan
         outlier_influence = np.nan
         
@@ -859,8 +889,16 @@ def fit(pred_details, shortcut=False, yhat=False):
         n = np.sum(include)
         
         # standardize y and relevance to z-scores
-        z_y = (y_keep - average(y)) / standard_deviation(y)
-        z_r = (rel_keep - average(rel)) / standard_deviation(rel) # note avg(rel)=0
+        stdev_y = standard_deviation(y)
+        stdev_rel = standard_deviation(rel)
+        if np.any(stdev_y == 0) or np.any(stdev_rel == 0):
+            f = np.array([[np.nan]])
+            fit_details = {'agreement': np.nan, 'outlier_influence': np.nan,
+                           'fit_scaled': np.nan, 'agreement_scaled': np.nan,
+                           'outlier_influence_scaled': np.nan}
+            return f, fit_details
+        z_y = (y_keep - average(y)) / stdev_y
+        z_r = (rel_keep - average(rel)) / stdev_rel
         
         # initialize agreement and outlier_influence, to sum incrementally
         agreement = 0
@@ -937,7 +975,11 @@ def precision(pred_details, fit_details=None):
     # compute precision from its components
     n_minus_1 = n - 1
     outlier_minus_agree = n * outlier_influence - agreement
-    precision = n_minus_1 / (info_t * outlier_minus_agree)
+    denom = info_t * outlier_minus_agree
+    if denom == 0:
+        precision = np.array([[np.nan]])
+    else:
+        precision = n_minus_1 / denom
     
     # store and pass detailed outputs
     prec_details = {
@@ -977,6 +1019,14 @@ def reliability(fits, info_ts, agreements=None, outlier_influences=None):
     """
     T = fits.shape[0]
     
+    if T < 2:
+        rely = np.array([[np.nan]])
+        rely_details = {
+            'reliability_agreement': None,
+            'reliability_outlier_influence': None,
+        }
+        return rely, rely_details
+
     rely = (1/(T-1)) * np.matmul(np.transpose(fits), info_ts)
     
     # reliability based on agreement, if desired
