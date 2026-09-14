@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Persisted live alpha signal history (generated locally, not source)
+signals/
+
 # C extensions
 *.so
 

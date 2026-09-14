@@ -287,6 +287,73 @@ def build_backtest_panel(prices, forward_period=21):
     return panel
 
 
+def build_latest_period_features(prices, feature_cols=None):
+    """
+    Compute Study 2 features for the most recent trading day only, with no
+    forward outcome (it hasn't happened yet). Used to generate a live signal.
+    """
+    if feature_cols is None:
+        feature_cols = BACKTEST_FEATURE_COLS
+
+    daily_ret = prices.pct_change()
+    date = prices.index[-1]
+
+    records = []
+    for ticker in prices.columns:
+        px = prices[ticker].loc[:date].dropna()
+        ret = daily_ret[ticker].loc[:date].dropna()
+        if len(px) < 252:
+            continue
+        records.append({
+            "date": date,
+            "ticker": ticker,
+            "return_21d": px.iloc[-1] / px.iloc[-21] - 1,
+            "return_63d": px.iloc[-1] / px.iloc[-63] - 1,
+            "return_126d": px.iloc[-1] / px.iloc[-126] - 1,
+            "return_252d": px.iloc[-1] / px.iloc[-252] - 1,
+            "vol_63d": ret.iloc[-63:].std() * np.sqrt(252),
+            "vol_252d": ret.iloc[-252:].std() * np.sqrt(252),
+        })
+    return pd.DataFrame(records, columns=["date", "ticker"] + feature_cols)
+
+
+def predict_live_signal(panel, latest_features, feature_cols=None,
+                        thresh=0.75, most=True, max_training_obs=1500):
+    """
+    Predict the alpha signal for the current (outcome-unknown) cross-section,
+    training on the full realised history in *panel*.
+
+    Returns
+    -------
+    DataFrame with columns: date, ticker, signal, fit
+    """
+    if feature_cols is None:
+        feature_cols = BACKTEST_FEATURE_COLS
+
+    train = panel.dropna(subset=feature_cols + ["forward_return"])
+    test = latest_features.dropna(subset=feature_cols)
+
+    if len(train) < 20 or len(test) < 3:
+        raise ValueError("Not enough data to generate a live signal.")
+
+    if len(train) > max_training_obs:
+        train = train.tail(max_training_obs)
+
+    pred_result, _ = pr.predict_df(
+        train[feature_cols],
+        test[feature_cols],
+        train[["forward_return"]],
+        thresh=thresh, most=most, pct_thresh=True,
+        pairwise_fits=False,
+    )
+    return pd.DataFrame({
+        "date": test["date"].values,
+        "ticker": test["ticker"].values,
+        "signal": pred_result["yhat"].values,
+        "fit": pred_result["fit"].values,
+    })
+
+
 def run_walk_forward(panel, feature_cols=None, thresh=0.75, most=True,
                      min_training_months=12, max_training_obs=1500):
     """

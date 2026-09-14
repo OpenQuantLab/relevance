@@ -4,3 +4,4 @@ dash
 plotly
 requests
 gunicorn
+pyarrow
