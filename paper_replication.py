@@ -21,6 +21,9 @@ Two studies implemented:
             long-short returns.
 """
 
+import sys
+import time
+
 import numpy as np
 import pandas as pd
 import predictionrevisited as pr
@@ -355,7 +358,8 @@ def predict_live_signal(panel, latest_features, feature_cols=None,
 
 
 def run_walk_forward(panel, feature_cols=None, thresh=0.75, most=True,
-                     min_training_months=12, max_training_obs=1500):
+                     min_training_months=12, max_training_obs=1500,
+                     progress=False):
     """
     Walk-forward backtest.
 
@@ -377,9 +381,21 @@ def run_walk_forward(panel, feature_cols=None, thresh=0.75, most=True,
             f"have {len(dates)}."
         )
 
+    n_steps = len(dates) - min_training_months
+    t_start = time.time()
+
     all_preds = []
     for t_idx in range(min_training_months, len(dates)):
         current_date = dates[t_idx]
+
+        if progress:
+            done = t_idx - min_training_months
+            elapsed = time.time() - t_start
+            eta = (elapsed / done * (n_steps - done)) if done else float("nan")
+            print(f"\r    month {done + 1}/{n_steps} "
+                  f"({pd.Timestamp(current_date):%Y-%m}) "
+                  f"elapsed {elapsed:6.0f}s eta {eta:6.0f}s",
+                  end="", file=sys.stderr, flush=True)
         train_dates = dates[max(0, t_idx - 36):t_idx]
 
         train = (
@@ -415,6 +431,9 @@ def run_walk_forward(panel, feature_cols=None, thresh=0.75, most=True,
             all_preds.append(preds)
         except Exception:
             continue
+
+    if progress:
+        print(file=sys.stderr, flush=True)
 
     if not all_preds:
         raise ValueError("No successful predictions during backtest.")

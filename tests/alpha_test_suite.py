@@ -219,7 +219,7 @@ def benchmark_return(panel, dates):
 # -----------------------------------------------------------------------
 
 def run_config(panel, label, thresh, most, min_training_months=12,
-               n_bins=5, n_perm=0):
+               n_bins=5, n_perm=0, progress=True):
     t0 = time.time()
     results = repl.run_walk_forward(
         panel,
@@ -227,6 +227,7 @@ def run_config(panel, label, thresh, most, min_training_months=12,
         thresh=thresh,
         most=most,
         min_training_months=min_training_months,
+        progress=progress,
     )
     metrics = repl.compute_period_metrics(results)
     ls = ls_series(results, n_bins)
@@ -300,20 +301,21 @@ def main():
             for thresh in args.threshs:
                 for most in (True, False):
                     label = f"{uni}|h{h}|t{thresh:.2f}|{'most' if most else 'least'}"
-                    print(f"   running {label} …", end="", flush=True)
+                    print(f"   running {label} …", flush=True)
                     try:
                         row, results, metrics, ls, prof = run_config(
                             panel, label, thresh, most, n_perm=0
                         )
                     except Exception as exc:
-                        print(f" FAILED: {exc}")
+                        print(f"   {label} FAILED: {exc}")
                         continue
                     row["universe"] = uni
                     row["horizon"] = h
                     all_rows.append(row)
-                    print(f" IC={row['mean_ic']:+.4f} (t={row['ic_t']:+.2f}) "
+                    print(f"   -> IC={row['mean_ic']:+.4f} "
+                          f"(t={row['ic_t']:+.2f}) "
                           f"Sharpe={row['ls_sharpe']:+.2f} "
-                          f"[{row['secs']:.0f}s]")
+                          f"[{row['secs']:.0f}s]", flush=True)
 
                     key = (uni, h)
                     if key not in best or (
