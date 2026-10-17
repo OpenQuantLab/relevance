@@ -124,7 +124,7 @@ def _compare(expected, actual, path, tol, failures):
         if len(expected) != len(actual):
             failures.append(f"{path}: length {len(expected)} -> {len(actual)}")
             return
-        for i, (e, a) in enumerate(zip(expected, actual)):
+        for i, (e, a) in enumerate(zip(expected, actual, strict=True)):
             _compare(e, a, f"{path}[{i}]", tol, failures)
         return
     if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):

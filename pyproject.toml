@@ -25,22 +25,18 @@ serve = ["gunicorn>=21.2; sys_platform != 'win32'"]
 plot = ["matplotlib>=3.8"]
 dev = ["pytest>=8.0", "ruff>=0.5"]
 
-[tool.setuptools]
-py-modules = [
-    "alpha_lab",
-    "alpha_lab_app",
-    "alpha_report",
-    "alpha_signal",
-    "app",
-    "eodhd_data",
-    "paper_replication",
-    "predictionrevisited",
-    "signal_history",
-]
+[project.scripts]
+relevance-backtest = "relevance.backtest.harness:main"
+relevance-report = "relevance.reporting.html_report:main"
+relevance-signals = "relevance.storage.signals:main"
+relevance-grid = "relevance.cli.grid:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["src", "."]
 addopts = "-q --strict-markers"
 markers = [
     "network: test requires live EODHD API access (deselected by default)",
@@ -59,6 +55,18 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# The maths modules mirror the paper's notation and use wildcard-ish star imports.
-"predictionrevisited.py" = ["E501"]
+# The maths modules mirror the paper's notation.
+"src/relevance/core/prediction.py" = ["E501"]
+# Long Dash style dicts; this module is split up in a later pass.
+"src/relevance/webapp/demo/app.py" = ["E501"]
 "tests/*" = ["E501"]
+# Deprecated shims deliberately re-bind module names.
+"alpha_lab.py" = ["F401"]
+"alpha_lab_app.py" = ["F401"]
+"alpha_report.py" = ["F401"]
+"alpha_signal.py" = ["F401"]
+"app.py" = ["F401"]
+"eodhd_data.py" = ["F401"]
+"paper_replication.py" = ["F401"]
+"predictionrevisited.py" = ["F401"]
+"signal_history.py" = ["F401"]

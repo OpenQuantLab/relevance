@@ -25,23 +25,18 @@ Usage
 import argparse
 import hashlib
 import json
-import os
-import sys
 import time
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
+from relevance import config
+from relevance.backtest import harness as alpha
+from relevance.data import eodhd as eodhd_data
+from relevance.studies import paper as repl
 
-import alpha_signal as alpha  # noqa: E402
-import eodhd_data  # noqa: E402
-import paper_replication as repl  # noqa: E402
-
-CACHE_DIR = Path(__file__).resolve().parent / "cache"
-OUT_DIR = Path(__file__).resolve().parent / "results"
+CACHE_DIR = config.CACHE_DIR
+OUT_DIR = config.RESULTS_DIR
 
 
 # -----------------------------------------------------------------------
@@ -337,7 +332,7 @@ def main():
     grid.to_csv(OUT_DIR / "grid_summary.csv", index=False)
 
     # ---- deep dive on the best config per universe/horizon ----
-    for (uni, h), (row, results, metrics, ls, prof, panel) in best.items():
+    for (_uni, _h), (row, results, _metrics, ls, prof, panel) in best.items():
         print(f"\n\n{'=' * 78}\nDEEP DIVE – best config: {row['config']}"
               f"\n{'=' * 78}")
 
