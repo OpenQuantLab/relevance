@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "relevance"
+version = "0.1.0"
+description = "Relevance-based prediction and cross-sectional alpha signal research lab"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "pyarrow>=14",
+    "requests>=2.31",
+    "dash>=2.16",
+    "plotly>=5.18",
+]
+
+[project.optional-dependencies]
+# gunicorn is Linux-only; the dashboards run on the dev server elsewhere.
+serve = ["gunicorn>=21.2; sys_platform != 'win32'"]
+plot = ["matplotlib>=3.8"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[tool.setuptools]
+py-modules = [
+    "alpha_lab",
+    "alpha_lab_app",
+    "alpha_report",
+    "alpha_signal",
+    "app",
+    "eodhd_data",
+    "paper_replication",
+    "predictionrevisited",
+    "signal_history",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers"
+markers = [
+    "network: test requires live EODHD API access (deselected by default)",
+    "slow: end-to-end walk-forward backtest (minutes, not seconds)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E741",  # ambiguous names (l, I) are idiomatic in the maths modules
+    "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The maths modules mirror the paper's notation and use wildcard-ish star imports.
+"predictionrevisited.py" = ["E501"]
+"tests/*" = ["E501"]

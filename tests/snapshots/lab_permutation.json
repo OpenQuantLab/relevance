@@ -1,0 +1,9 @@
+{
+  "n_perm": 25,
+  "null_sharpe_mean": 0.1408784397,
+  "null_sharpe_p95": 1.4239965475,
+  "obs_ic": 0.0422427035,
+  "obs_sharpe": -0.1111197029,
+  "p_ic": 0.16,
+  "p_sharpe": 0.56
+}

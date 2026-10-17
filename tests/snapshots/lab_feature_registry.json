@@ -1,0 +1,127 @@
+{
+  "beta_252d": {
+    "group": "Risk",
+    "label": "Beta 252d",
+    "sign": -1
+  },
+  "dist_52w_high": {
+    "group": "Trend",
+    "label": "Distance to 52w high",
+    "sign": 1
+  },
+  "dist_52w_low": {
+    "group": "Trend",
+    "label": "Distance to 52w low",
+    "sign": -1
+  },
+  "downside_vol_63d": {
+    "group": "Risk",
+    "label": "Downside vol 63d",
+    "sign": -1
+  },
+  "idio_vol_63d": {
+    "group": "Risk",
+    "label": "Idiosyncratic vol 63d",
+    "sign": -1
+  },
+  "kurt_63d": {
+    "group": "Risk",
+    "label": "Kurtosis 63d",
+    "sign": -1
+  },
+  "ma_50_200": {
+    "group": "Trend",
+    "label": "MA50 / MA200",
+    "sign": 1
+  },
+  "mom_12_1": {
+    "group": "Momentum",
+    "label": "Momentum 12-1m",
+    "sign": 1
+  },
+  "mom_6_1": {
+    "group": "Momentum",
+    "label": "Momentum 6-1m",
+    "sign": 1
+  },
+  "px_ma_200": {
+    "group": "Trend",
+    "label": "Price / MA200",
+    "sign": 1
+  },
+  "px_ma_50": {
+    "group": "Trend",
+    "label": "Price / MA50",
+    "sign": 1
+  },
+  "rel_strength_63d": {
+    "group": "Mean reversion",
+    "label": "Relative strength 63d",
+    "sign": 1
+  },
+  "return_126d": {
+    "group": "Momentum",
+    "label": "Return 126d",
+    "sign": 1
+  },
+  "return_21d": {
+    "group": "Momentum",
+    "label": "Return 21d",
+    "sign": 1
+  },
+  "return_252d": {
+    "group": "Momentum",
+    "label": "Return 252d",
+    "sign": 1
+  },
+  "return_5d": {
+    "group": "Momentum",
+    "label": "Return 5d",
+    "sign": 1
+  },
+  "return_63d": {
+    "group": "Momentum",
+    "label": "Return 63d",
+    "sign": 1
+  },
+  "rev_21d": {
+    "group": "Momentum",
+    "label": "Short-term reversal 21d",
+    "sign": 1
+  },
+  "rsi_14": {
+    "group": "Mean reversion",
+    "label": "RSI 14d",
+    "sign": -1
+  },
+  "skew_63d": {
+    "group": "Risk",
+    "label": "Skew 63d",
+    "sign": -1
+  },
+  "vol_126d": {
+    "group": "Risk",
+    "label": "Volatility 126d",
+    "sign": -1
+  },
+  "vol_21d": {
+    "group": "Risk",
+    "label": "Volatility 21d",
+    "sign": -1
+  },
+  "vol_252d": {
+    "group": "Risk",
+    "label": "Volatility 252d",
+    "sign": -1
+  },
+  "vol_63d": {
+    "group": "Risk",
+    "label": "Volatility 63d",
+    "sign": -1
+  },
+  "zscore_21d": {
+    "group": "Mean reversion",
+    "label": "Price z-score 21d",
+    "sign": -1
+  }
+}

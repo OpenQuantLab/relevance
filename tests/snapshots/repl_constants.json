@@ -1,0 +1,58 @@
+{
+  "BACKTEST_FEATURE_COLS": [
+    "return_21d",
+    "return_63d",
+    "return_126d",
+    "return_252d",
+    "vol_63d",
+    "vol_252d"
+  ],
+  "DEFAULT_STOCKS": [
+    "AAPL",
+    "MSFT",
+    "AMZN",
+    "GOOGL",
+    "META",
+    "NVDA",
+    "TSLA",
+    "JPM",
+    "JNJ",
+    "V",
+    "UNH",
+    "PG",
+    "HD",
+    "BAC",
+    "XOM",
+    "PFE",
+    "CSCO",
+    "KO",
+    "PEP",
+    "MRK",
+    "WMT",
+    "CRM",
+    "NFLX",
+    "AMD",
+    "QCOM",
+    "COST",
+    "LLY",
+    "AVGO",
+    "ORCL",
+    "CVX"
+  ],
+  "FUNDAMENTAL_ATTRS": [
+    "log_market_cap",
+    "earnings_yield",
+    "pb_ratio",
+    "ev_ebitda",
+    "dividend_yield",
+    "roe",
+    "profit_margin",
+    "beta"
+  ],
+  "PRICE_ATTRS": [
+    "momentum_12m",
+    "momentum_6m",
+    "momentum_1m",
+    "volatility_3m"
+  ]
+}
