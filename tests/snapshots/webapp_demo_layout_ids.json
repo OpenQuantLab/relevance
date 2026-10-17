@@ -1,0 +1,18 @@
+[
+  "binary-check",
+  "main-tabs",
+  "market-info-store",
+  "market-predictions-store",
+  "market-relevance-store",
+  "most-radio",
+  "obs-data-store",
+  "pairwise-check",
+  "paper-results-store",
+  "pct-thresh-radio",
+  "pred-data-store",
+  "predictions-store",
+  "relevance-store",
+  "run-btn",
+  "tab-content",
+  "thresh-slider"
+]
