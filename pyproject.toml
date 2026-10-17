@@ -58,7 +58,7 @@ ignore = [
 # The maths modules mirror the paper's notation.
 "src/relevance/core/prediction.py" = ["E501"]
 # Long Dash style dicts; this module is split up in a later pass.
-"src/relevance/webapp/demo/app.py" = ["E501"]
+"src/relevance/webapp/demo/*.py" = ["E501"]
 "tests/*" = ["E501"]
 # Deprecated shims deliberately re-bind module names.
 "alpha_lab.py" = ["F401"]
