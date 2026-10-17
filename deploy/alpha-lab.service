@@ -1,0 +1,23 @@
+[Unit]
+Description=Alpha Lab – signal design workbench
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/relevance
+EnvironmentFile=/etc/alpha-lab.env
+# One worker only: backtests run in a thread inside the process.
+ExecStart=/opt/relevance/venv/bin/gunicorn \
+    --bind 127.0.0.1:8052 \
+    --workers 1 \
+    --threads 8 \
+    --timeout 300 \
+    alpha_lab_app:server
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

@@ -6,6 +6,9 @@ __pycache__/
 # Persisted live alpha signal history (generated locally, not source)
 signals/
 
+# Alpha Lab price cache and saved backtest runs (generated locally)
+lab/
+
 # C extensions
 *.so
 
