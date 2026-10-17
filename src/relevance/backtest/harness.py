@@ -11,10 +11,10 @@ model and evaluates them with standard quant metrics:
 
 Usage
 -----
-    python alpha_signal.py                          # defaults
-    python alpha_signal.py --tickers AAPL MSFT ...  # custom universe
-    python alpha_signal.py --from-date 2015-01-01 --thresh 0.70
-    python alpha_signal.py --output results.csv     # save signal + returns
+    relevance-backtest                          # defaults
+    relevance-backtest --tickers AAPL MSFT ...  # custom universe
+    relevance-backtest --from-date 2015-01-01 --thresh 0.70
+    relevance-backtest --output results.csv     # save signal + returns
 """
 
 import argparse

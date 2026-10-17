@@ -11,10 +11,12 @@ ExecStart=/opt/relevance/venv/bin/gunicorn \
     --bind 127.0.0.1:8050 \
     --workers 2 \
     --timeout 120 \
-    app:server
+    wsgi.demo:server
 Restart=on-failure
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
+# wsgi/ lives in the working directory; relevance/ comes from the venv.
+Environment=PYTHONPATH=/opt/relevance
 
 [Install]
 WantedBy=multi-user.target

@@ -2,7 +2,8 @@
 Alpha Lab – signal design, backtest and evaluation engine
 =========================================================
 
-Backend for the interactive Dash app (``alpha_lab_app.py``).  Lets you define
+Backend for the interactive Dash app (``relevance.webapp.alpha_lab.app``).
+Lets you define
 a cross-sectional alpha signal from a library of price-based features, run a
 walk-forward backtest with either the relevance model or a linear composite,
 and evaluate it with standard quant diagnostics.

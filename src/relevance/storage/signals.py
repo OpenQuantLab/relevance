@@ -11,9 +11,9 @@ Two signal families, matching the two studies in paper_replication.py:
 
 Usage
 -----
-    python signal_history.py --model price
-    python signal_history.py --model fundamental
-    python signal_history.py --model both --tickers AAPL MSFT ...
+    relevance-signals --model price
+    relevance-signals --model fundamental
+    relevance-signals --model both --tickers AAPL MSFT ...
 """
 
 import argparse

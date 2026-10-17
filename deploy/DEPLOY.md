@@ -14,13 +14,16 @@ sudo mkdir -p /opt/relevance
 cd /opt/relevance
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[serve]"
 ```
+
+The code is a package under `src/relevance`, so it must be installed rather
+than merely unpacked. `[serve]` pulls in gunicorn.
 
 ## 3. Test locally
 
 ```bash
-gunicorn --bind 127.0.0.1:8050 --workers 2 --timeout 120 app:server
+gunicorn --bind 127.0.0.1:8050 --workers 2 --timeout 120 wsgi.demo:server
 # Visit http://server-ip:8050/projects/relevance/ to confirm it works
 ```
 
@@ -72,7 +75,7 @@ Open `https://datavik.no/projects/relevance/` in a browser.
 cd /opt/relevance
 git pull                         # or re-upload files
 source venv/bin/activate
-pip install -r requirements.txt  # if deps changed
+pip install -e ".[serve]"        # picks up dependency and entry-point changes
 sudo systemctl restart relevance
 ```
 

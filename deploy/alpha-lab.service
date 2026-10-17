@@ -14,10 +14,12 @@ ExecStart=/opt/relevance/venv/bin/gunicorn \
     --workers 1 \
     --threads 8 \
     --timeout 300 \
-    alpha_lab_app:server
+    wsgi.alpha_lab:server
 Restart=on-failure
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
+# wsgi/ lives in the working directory; relevance/ comes from the venv.
+Environment=PYTHONPATH=/opt/relevance
 
 [Install]
 WantedBy=multi-user.target

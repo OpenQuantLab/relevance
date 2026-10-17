@@ -8,11 +8,11 @@ no JavaScript.
 
 Usage
 -----
-    python alpha_report.py                        # replay cached test results
-    python alpha_report.py --live                 # run a fresh backtest
-    python alpha_report.py --live --tickers AAPL MSFT NVDA --from-date 2016-01-01
-    python alpha_report.py --preds tests/results/preds_mega30_h21_t075_most.csv
-    python alpha_report.py --output docs/alpha_demo.html --open
+    relevance-report                        # replay cached results
+    relevance-report --live                 # run a fresh backtest
+    relevance-report --live --tickers AAPL MSFT NVDA --from-date 2016-01-01
+    relevance-report --preds results/preds_mega30_h21_t075_most.csv
+    relevance-report --output docs/alpha_demo.html --open
 """
 
 import argparse

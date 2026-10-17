@@ -9,9 +9,13 @@ signals/
 # Alpha Lab price cache and saved backtest runs (generated locally)
 lab/
 
+# Generated reports
+alpha_report.html
+
 # Local test-run artifacts
 tests_junit.xml
 pytest_out.txt
+ruff_out.txt
 
 # C extensions
 *.so

@@ -5,7 +5,7 @@ Alpha Lab – interactive Dash workbench
 Design a cross-sectional alpha signal, run a walk-forward test on it, and
 read the results in a dashboard.
 
-    python alpha_lab_app.py        # http://127.0.0.1:8051
+    python -m relevance.webapp.alpha_lab.app   # http://127.0.0.1:8051
 
 Backtests run in a worker thread inside this process, so serve the app with a
 single worker (``gunicorn -w 1 --threads 8 alpha_lab_app:server``).

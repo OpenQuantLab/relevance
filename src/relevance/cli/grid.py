@@ -17,9 +17,9 @@ Prices are cached to tests/cache/*.parquet so re-runs are fast.
 
 Usage
 -----
-    py tests/alpha_test_suite.py                 # full suite
-    py tests/alpha_test_suite.py --quick         # mega-cap only, small grid
-    py tests/alpha_test_suite.py --universe sp100
+    relevance-grid                 # full suite
+    relevance-grid --quick         # mega-cap only, small grid
+    relevance-grid --universe sp100
 """
 
 import argparse

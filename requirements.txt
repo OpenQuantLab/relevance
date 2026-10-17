@@ -1,7 +1,13 @@
-numpy
-pandas
-dash
-plotly
-requests
-gunicorn
-pyarrow
+# Dependencies are declared in pyproject.toml; this file is kept so that
+# `pip install -r requirements.txt` keeps working. Prefer:
+#
+#     pip install -e ".[serve]"     # production (adds gunicorn)
+#     pip install -e ".[dev,plot]"  # development
+#
+numpy>=1.26
+pandas>=2.1
+dash>=2.16
+plotly>=5.18
+requests>=2.31
+pyarrow>=14
+gunicorn>=21.2; sys_platform != "win32"
