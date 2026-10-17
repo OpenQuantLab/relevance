@@ -20,48 +20,18 @@ Usage
 import argparse
 
 import numpy as np
-import pandas as pd
 
+from relevance.backtest import metrics as _metrics
 from relevance.data import eodhd as eodhd_data
 from relevance.studies import paper as repl
 
 # -----------------------------------------------------------------------
-# Performance metrics
+# Performance metrics (re-exported from relevance.backtest.metrics)
 # -----------------------------------------------------------------------
 
-def annualized_sharpe(returns, periods_per_year=12):
-    if len(returns) < 2 or returns.std() == 0:
-        return np.nan
-    return returns.mean() / returns.std() * np.sqrt(periods_per_year)
-
-
-def max_drawdown(cum_returns):
-    """Max drawdown from a cumulative return series (0-based, not 1-based)."""
-    wealth = 1 + cum_returns
-    peak = wealth.cummax()
-    dd = (wealth - peak) / peak
-    return dd.min()
-
-
-def compute_turnover(backtest_results, n_bins=5):
-    """Average single-side turnover of the long portfolio across rebalances."""
-    prev_long = set()
-    turnovers = []
-    for _date, group in backtest_results.groupby("date"):
-        valid = group.dropna(subset=["predicted", "actual"]).copy()
-        nb = min(n_bins, len(valid))
-        if nb < 2:
-            continue
-        valid["q"] = pd.qcut(
-            valid["predicted"], nb, labels=False, duplicates="drop"
-        )
-        long_tickers = set(valid[valid["q"] == valid["q"].max()]["ticker"])
-        if prev_long:
-            union = prev_long | long_tickers
-            changed = len(union - (prev_long & long_tickers))
-            turnovers.append(changed / max(len(prev_long), len(long_tickers)))
-        prev_long = long_tickers
-    return np.mean(turnovers) if turnovers else np.nan
+annualized_sharpe = _metrics.annualized_sharpe
+max_drawdown = _metrics.max_drawdown
+compute_turnover = _metrics.compute_turnover
 
 
 def summarize_performance(backtest_results):

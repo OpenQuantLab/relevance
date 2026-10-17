@@ -23,8 +23,6 @@ Usage
 """
 
 import argparse
-import hashlib
-import json
 import time
 
 import numpy as np
@@ -32,7 +30,7 @@ import pandas as pd
 
 from relevance import config
 from relevance.backtest import harness as alpha
-from relevance.data import eodhd as eodhd_data
+from relevance.data import cache, universes
 from relevance.studies import paper as repl
 
 CACHE_DIR = config.CACHE_DIR
@@ -43,23 +41,9 @@ OUT_DIR = config.RESULTS_DIR
 # Universes
 # -----------------------------------------------------------------------
 
-MEGA30 = repl.DEFAULT_STOCKS
-
-# S&P 100 constituents (dot-class tickers such as BRK.B omitted).
-SP100 = [
-    "AAPL", "ABBV", "ABT", "ACN", "ADBE", "AIG", "AMD", "AMGN", "AMT", "AMZN",
-    "AVGO", "AXP", "BA", "BAC", "BK", "BKNG", "BLK", "BMY", "C", "CAT",
-    "CHTR", "CL", "CMCSA", "COF", "COP", "COST", "CRM", "CSCO", "CVS", "CVX",
-    "DE", "DHR", "DIS", "DOW", "DUK", "EMR", "EXC", "F", "FDX", "GD",
-    "GE", "GILD", "GM", "GOOGL", "GS", "HD", "HON", "IBM", "INTC", "INTU",
-    "JNJ", "JPM", "KHC", "KO", "LIN", "LLY", "LMT", "LOW", "MA", "MCD",
-    "MDLZ", "MDT", "MET", "META", "MMM", "MO", "MRK", "MS", "MSFT", "NEE",
-    "NFLX", "NKE", "NVDA", "ORCL", "PEP", "PFE", "PG", "PM", "PYPL", "QCOM",
-    "RTX", "SBUX", "SCHW", "SO", "SPG", "T", "TGT", "TMO", "TMUS", "TSLA",
-    "TXN", "UNH", "UNP", "UPS", "USB", "V", "VZ", "WFC", "WMT", "XOM",
-]
-
-UNIVERSES = {"mega30": MEGA30, "sp100": SP100}
+MEGA30 = universes.MEGA30
+SP100 = universes.SP100
+UNIVERSES = universes.UNIVERSES
 
 
 # -----------------------------------------------------------------------
@@ -67,25 +51,8 @@ UNIVERSES = {"mega30": MEGA30, "sp100": SP100}
 # -----------------------------------------------------------------------
 
 def load_prices(tickers, from_date, to_date, exchange="US", refresh=False):
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    key = hashlib.md5(
-        json.dumps([sorted(tickers), from_date, to_date, exchange]).encode()
-    ).hexdigest()[:12]
-    path = CACHE_DIR / f"prices_{key}.parquet"
-
-    if path.exists() and not refresh:
-        prices = pd.read_parquet(path)
-        print(f"  [cache] {path.name}: {prices.shape[0]} days x "
-              f"{prices.shape[1]} tickers")
-        return prices
-
-    print(f"  [fetch] {len(tickers)} tickers from EODHD …")
-    prices = eodhd_data.fetch_multiple(
-        tickers, exchange=exchange, from_date=from_date, to_date=to_date
-    )
-    prices.to_parquet(path)
-    print(f"  [fetch] got {prices.shape[0]} days x {prices.shape[1]} tickers")
-    return prices
+    return cache.load_prices(tickers, from_date, to_date, exchange,
+                             refresh=refresh, verbose=True)
 
 
 # -----------------------------------------------------------------------

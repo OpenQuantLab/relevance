@@ -32,8 +32,9 @@ import pandas as pd
 
 from relevance import config
 from relevance.backtest import harness as alpha
+from relevance.backtest import metrics
 from relevance.core import prediction as pr
-from relevance.data import eodhd as eodhd_data
+from relevance.data import cache, universes
 from relevance.studies import paper as repl
 
 LAB_DIR = config.LAB_DIR
@@ -44,41 +45,14 @@ PERIODS_PER_YEAR = {"W": 52, "M": 12, "Q": 4}
 
 
 # -----------------------------------------------------------------------
-# Universes
+# Universes (re-exported for backwards compatibility)
 # -----------------------------------------------------------------------
 
-MEGA30 = list(repl.DEFAULT_STOCKS)
-
-SP100 = [
-    "AAPL", "ABBV", "ABT", "ACN", "ADBE", "AIG", "AMD", "AMGN", "AMT", "AMZN",
-    "AVGO", "AXP", "BA", "BAC", "BK", "BKNG", "BLK", "BMY", "C", "CAT",
-    "CHTR", "CL", "CMCSA", "COF", "COP", "COST", "CRM", "CSCO", "CVS", "CVX",
-    "DE", "DHR", "DIS", "DOW", "DUK", "EMR", "EXC", "F", "FDX", "GD",
-    "GE", "GILD", "GM", "GOOGL", "GS", "HD", "HON", "IBM", "INTC", "INTU",
-    "JNJ", "JPM", "KHC", "KO", "LIN", "LLY", "LMT", "LOW", "MA", "MCD",
-    "MDLZ", "MDT", "MET", "META", "MMM", "MO", "MRK", "MS", "MSFT", "NEE",
-    "NFLX", "NKE", "NVDA", "ORCL", "PEP", "PFE", "PG", "PM", "PYPL", "QCOM",
-    "RTX", "SBUX", "SCHW", "SO", "SPG", "T", "TGT", "TMO", "TMUS", "TSLA",
-    "TXN", "UNH", "UNP", "UPS", "USB", "V", "VZ", "WFC", "WMT", "XOM",
-]
-
-DOW30 = [
-    "AAPL", "AMGN", "AXP", "BA", "CAT", "CRM", "CSCO", "CVX", "DIS", "GS",
-    "HD", "HON", "IBM", "JNJ", "JPM", "KO", "MCD", "MMM", "MRK", "MSFT",
-    "NKE", "PG", "TRV", "UNH", "V", "VZ", "WBA", "WMT", "DOW", "INTC",
-]
-
-SECTOR_ETFS = [
-    "XLB", "XLE", "XLF", "XLI", "XLK", "XLP", "XLU", "XLV", "XLY", "XLRE",
-    "XLC",
-]
-
-UNIVERSES: dict[str, list[str]] = {
-    "mega30": MEGA30,
-    "dow30": DOW30,
-    "sp100": SP100,
-    "sector_etfs": SECTOR_ETFS,
-}
+MEGA30 = universes.MEGA30
+SP100 = universes.SP100
+DOW30 = universes.DOW30
+SECTOR_ETFS = universes.SECTOR_ETFS
+UNIVERSES = universes.UNIVERSES
 
 
 # -----------------------------------------------------------------------
@@ -336,29 +310,15 @@ class SignalSpec:
 # -----------------------------------------------------------------------
 
 def _price_cache_name(tickers, from_date, to_date, exchange) -> str:
-    key = hashlib.md5(
-        json.dumps([sorted(tickers), from_date, to_date, exchange]).encode()
-    ).hexdigest()[:12]
-    return f"prices_{key}.parquet"
+    return cache.price_cache_name(tickers, from_date, to_date, exchange)
 
 
 def load_prices(spec: SignalSpec, refresh: bool = False) -> pd.DataFrame:
     """Adjusted closes for the spec universe, cached on disk as parquet."""
-    name = _price_cache_name(spec.tickers, spec.from_date, spec.to_date,
-                             spec.exchange)
-    if not refresh:
-        for d in CACHE_DIRS:
-            path = d / name
-            if path.exists():
-                return pd.read_parquet(path)
-
-    prices = eodhd_data.fetch_multiple(
-        spec.tickers, exchange=spec.exchange,
-        from_date=spec.from_date, to_date=spec.to_date,
+    return cache.load_prices(
+        spec.tickers, spec.from_date, spec.to_date, spec.exchange,
+        refresh=refresh,
     )
-    CACHE_DIRS[0].mkdir(parents=True, exist_ok=True)
-    prices.to_parquet(CACHE_DIRS[0] / name)
-    return prices
 
 
 # -----------------------------------------------------------------------
@@ -543,126 +503,19 @@ def _run_relevance(panel: pd.DataFrame, spec: SignalSpec,
 # -----------------------------------------------------------------------
 
 def _ranked(results: pd.DataFrame) -> pd.DataFrame:
-    valid = results.dropna(subset=["predicted", "actual"]).copy()
-    valid["rank"] = valid.groupby("date")["predicted"].rank(pct=True)
-    return valid
+    return metrics._ranked(results)
 
 
-def ls_series(results: pd.DataFrame, n_bins: int = 5) -> pd.DataFrame:
-    """Equal-weight long top-bin / short bottom-bin return series."""
-    valid = _ranked(results)
-    hi = valid[valid["rank"] > 1 - 1 / n_bins].groupby("date")["actual"].mean()
-    lo = valid[valid["rank"] <= 1 / n_bins].groupby("date")["actual"].mean()
-    out = pd.DataFrame({"long": hi, "short": lo}).dropna()
-    out["long_short"] = out["long"] - out["short"]
-    out["benchmark"] = valid.groupby("date")["actual"].mean()
-    out.index = pd.to_datetime(out.index)
-    out = out.sort_index()
-    for col in ("long_short", "long", "short", "benchmark"):
-        out[f"cum_{col}"] = (1 + out[col]).cumprod() - 1
-    return out
-
-
-def bin_profile(results: pd.DataFrame, n_bins: int = 5) -> pd.DataFrame:
-    valid = _ranked(results)
-    valid["bin"] = np.clip((valid["rank"] * n_bins).astype(int), 0, n_bins - 1)
-    prof = (valid.groupby("bin")["actual"]
-            .agg(["mean", "std", "count"]).reset_index())
-    prof["label"] = [f"Q{i + 1}" for i in prof["bin"]]
-    return prof
-
-
-def ic_series(results: pd.DataFrame) -> pd.Series:
-    """Spearman rank correlation of predictions and outcomes, per date."""
-    valid = results.dropna(subset=["predicted", "actual"])
-    ranks = pd.DataFrame({
-        "date": valid["date"].to_numpy(),
-        "p": valid.groupby("date")["predicted"].rank().to_numpy(),
-        "a": valid.groupby("date")["actual"].rank().to_numpy(),
-    })
-    ranks["pa"] = ranks["p"] * ranks["a"]
-    agg = ranks.groupby("date").agg(
-        mp=("p", "mean"), ma=("a", "mean"), mpa=("pa", "mean"),
-        sp=("p", "std"), sa=("a", "std"), n=("p", "size"))
-    agg = agg[agg["n"] > 2]
-    cov = (agg["mpa"] - agg["mp"] * agg["ma"]) * agg["n"] / (agg["n"] - 1)
-    ic = cov / (agg["sp"] * agg["sa"]).replace(0, np.nan)
-    ic.index = pd.to_datetime(ic.index)
-    return ic.sort_index()
+ls_series = metrics.ls_series
+bin_profile = metrics.bin_profile
+ic_series = metrics.ic_series
+turnover = metrics.turnover
+permutation_test = metrics.permutation_test
 
 
 def yearly_stability(results: pd.DataFrame, n_bins: int = 5,
                      ppy: int = 12) -> pd.DataFrame:
-    ls = ls_series(results, n_bins)
-    df = pd.DataFrame({"long_short": ls["long_short"],
-                       "ic": ic_series(results)}).dropna()
-    if df.empty:
-        return pd.DataFrame()
-    by_year = df.groupby(df.index.year).agg(
-        periods=("long_short", "size"),
-        mean_ic=("ic", "mean"),
-        ls_total=("long_short", lambda s: (1 + s).prod() - 1),
-        ls_sharpe=("long_short", lambda s: alpha.annualized_sharpe(s, ppy)),
-    ).reset_index(names="year")
-    return by_year
-
-
-def turnover(results: pd.DataFrame, n_bins: int = 5) -> float:
-    valid = _ranked(results)
-    prev: set = set()
-    moves = []
-    for _, group in valid.groupby("date"):
-        longs = set(group[group["rank"] > 1 - 1 / n_bins]["ticker"])
-        if prev and longs:
-            kept = len(prev & longs)
-            moves.append(1 - kept / max(len(prev), len(longs)))
-        prev = longs or prev
-    return float(np.mean(moves)) if moves else np.nan
-
-
-def permutation_test(results: pd.DataFrame, n_perm: int = 200,
-                     n_bins: int = 5, ppy: int = 12, seed: int = 0) -> dict:
-    """Empirical p-values under the null that predictions carry no signal."""
-    rng = np.random.default_rng(seed)
-    valid = results.dropna(subset=["predicted", "actual"])
-    obs_ls = ls_series(valid, n_bins)["long_short"]
-    obs = dict(ic=float(ic_series(valid).mean()),
-               sharpe=float(alpha.annualized_sharpe(obs_ls, ppy)))
-
-    groups = [g[["predicted", "actual"]].to_numpy() for _, g in valid.groupby("date")]
-    null_ic, null_sharpe = [], []
-    for _ in range(n_perm):
-        ics, his, los = [], [], []
-        for g in groups:
-            if len(g) < n_bins:
-                continue
-            pred = rng.permutation(g[:, 0])
-            act = g[:, 1]
-            ics.append(pd.Series(pred).corr(pd.Series(act), method="spearman"))
-            r = pd.Series(pred).rank(pct=True).to_numpy()
-            his.append(act[r > 1 - 1 / n_bins].mean())
-            los.append(act[r <= 1 / n_bins].mean())
-        if not ics:
-            continue
-        null_ic.append(np.nanmean(ics))
-        null_sharpe.append(alpha.annualized_sharpe(
-            pd.Series(np.array(his) - np.array(los)), ppy))
-
-    null_ic = np.array(null_ic, dtype=float)
-    null_sharpe = np.array(null_sharpe, dtype=float)
-    return dict(
-        n_perm=int(len(null_ic)),
-        obs_ic=obs["ic"],
-        obs_sharpe=obs["sharpe"],
-        p_ic=float(np.mean(null_ic >= obs["ic"])) if len(null_ic) else np.nan,
-        p_sharpe=(float(np.mean(null_sharpe >= obs["sharpe"]))
-                  if len(null_sharpe) else np.nan),
-        null_sharpe_mean=float(np.nanmean(null_sharpe)) if len(null_sharpe) else np.nan,
-        null_sharpe_p95=(float(np.nanpercentile(null_sharpe, 95))
-                         if len(null_sharpe) else np.nan),
-        null_ic_dist=null_ic.tolist(),
-        null_sharpe_dist=null_sharpe.tolist(),
-    )
+    return metrics.yearly_stability(results, n_bins, ppy)
 
 
 def evaluate(results: pd.DataFrame, spec: SignalSpec,

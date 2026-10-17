@@ -27,33 +27,19 @@ import time
 import numpy as np
 import pandas as pd
 
+from relevance.backtest import metrics
 from relevance.core import prediction as pr
 from relevance.data import eodhd as eodhd_data
+from relevance.data import universes
 
 # -----------------------------------------------------------------------
-# Default universes
+# Default universes (re-exported for backwards compatibility)
 # -----------------------------------------------------------------------
 
-DEFAULT_STOCKS = [
-    "AAPL", "MSFT", "AMZN", "GOOGL", "META", "NVDA", "TSLA",
-    "JPM", "JNJ", "V", "UNH", "PG", "HD", "BAC", "XOM",
-    "PFE", "CSCO", "KO", "PEP", "MRK", "WMT", "CRM",
-    "NFLX", "AMD", "QCOM", "COST", "LLY", "AVGO", "ORCL", "CVX",
-]
-
-FUNDAMENTAL_ATTRS = [
-    "log_market_cap", "earnings_yield", "pb_ratio", "ev_ebitda",
-    "dividend_yield", "roe", "profit_margin", "beta",
-]
-
-PRICE_ATTRS = [
-    "momentum_12m", "momentum_6m", "momentum_1m", "volatility_3m",
-]
-
-BACKTEST_FEATURE_COLS = [
-    "return_21d", "return_63d", "return_126d", "return_252d",
-    "vol_63d", "vol_252d",
-]
+DEFAULT_STOCKS = universes.MEGA30
+FUNDAMENTAL_ATTRS = universes.FUNDAMENTAL_ATTRS
+PRICE_ATTRS = universes.PRICE_ATTRS
+BACKTEST_FEATURE_COLS = universes.BACKTEST_FEATURE_COLS
 
 
 # -----------------------------------------------------------------------
@@ -243,6 +229,11 @@ def build_backtest_panel(prices, forward_period=21):
     DataFrame  with columns:
         date, ticker, return_21d … vol_252d, forward_return
     """
+    # Features are computed per ticker on a dropna'd series with positional
+    # lookbacks, which is what the paper does. Deliberately NOT reusing the
+    # relevance.backtest.lab FEATURES registry: that one is calendar-aligned,
+    # so the two disagree whenever a ticker has gaps, and switching would
+    # change these published study numbers.
     daily_ret = prices.pct_change()
 
     # Last actual trading day of each month (avoids KeyError from calendar
@@ -442,101 +433,9 @@ def run_walk_forward(panel, feature_cols=None, thresh=0.75, most=True,
 
 
 # -----------------------------------------------------------------------
-# Performance analytics
+# Performance analytics (re-exported from relevance.backtest.metrics)
 # -----------------------------------------------------------------------
 
-def compute_quintile_analysis(results, pred_col="predicted_return",
-                              actual_col="actual_return"):
-    """
-    Sort stocks by predicted return into quintiles and compute
-    average actual return per quintile.  Works for both LOO results
-    and individual backtest periods.
-    """
-    valid = results.dropna(subset=[pred_col, actual_col]).copy()
-    if len(valid) < 5:
-        return None
-
-    n_bins = min(5, len(valid))
-    labels = [f"Q{i + 1}" for i in range(n_bins)]
-    valid["quintile"] = pd.qcut(
-        valid[pred_col], n_bins, labels=labels, duplicates="drop"
-    )
-
-    summary = (
-        valid.groupby("quintile", observed=True)[actual_col]
-        .agg(["mean", "count", "std"])
-    )
-    return summary
-
-
-def compute_period_metrics(backtest_results):
-    """
-    For each backtest date compute:
-      IC            – Spearman rank correlation (predicted vs actual)
-      hit_rate      – fraction with correct directional call
-      quintile_spread – average return Q5 minus Q1
-    """
-    metrics = []
-    for date, group in backtest_results.groupby("date"):
-        valid = group.dropna(subset=["predicted", "actual"])
-        if len(valid) < 5:
-            continue
-
-        ic = valid["predicted"].corr(valid["actual"], method="spearman")
-        median_pred = valid["predicted"].median()
-        median_actual = valid["actual"].median()
-        hit_rate = (
-            (valid["predicted"] > median_pred)
-            == (valid["actual"] > median_actual)
-        ).mean()
-
-        valid = valid.copy()
-        n_bins = min(5, len(valid))
-        valid["q"] = pd.qcut(
-            valid["predicted"], n_bins, labels=False, duplicates="drop"
-        )
-        q_hi = valid[valid["q"] == valid["q"].max()]["actual"].mean()
-        q_lo = valid[valid["q"] == valid["q"].min()]["actual"].mean()
-
-        metrics.append({
-            "date": date,
-            "ic": ic,
-            "hit_rate": hit_rate,
-            "quintile_spread": q_hi - q_lo,
-            "q_high": q_hi,
-            "q_low": q_lo,
-            "n": len(valid),
-        })
-
-    return pd.DataFrame(
-        metrics,
-        columns=["date", "ic", "hit_rate", "quintile_spread",
-                 "q_high", "q_low", "n"],
-    )
-
-
-def compute_cumulative_ls(backtest_results, n_bins=5):
-    """
-    Compute cumulative long-short returns from the backtest.
-
-    At each date, go long Q5 (highest predicted) and short Q1 (lowest).
-    """
-    ls_returns = []
-    for date, group in backtest_results.groupby("date"):
-        valid = group.dropna(subset=["predicted", "actual"]).copy()
-        nb = min(n_bins, len(valid))
-        if nb < 2:
-            continue
-        valid["q"] = pd.qcut(
-            valid["predicted"], nb, labels=False, duplicates="drop"
-        )
-        q_hi = valid[valid["q"] == valid["q"].max()]["actual"].mean()
-        q_lo = valid[valid["q"] == valid["q"].min()]["actual"].mean()
-        ls_returns.append({"date": date, "long_short": q_hi - q_lo,
-                           "long": q_hi, "short": q_lo})
-
-    df = pd.DataFrame(ls_returns).set_index("date").sort_index()
-    df["cumulative_ls"] = (1 + df["long_short"]).cumprod() - 1
-    df["cumulative_long"] = (1 + df["long"]).cumprod() - 1
-    df["cumulative_short"] = (1 + df["short"]).cumprod() - 1
-    return df
+compute_quintile_analysis = metrics.compute_quintile_analysis
+compute_period_metrics = metrics.compute_period_metrics
+compute_cumulative_ls = metrics.compute_cumulative_ls
