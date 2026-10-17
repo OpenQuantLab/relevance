@@ -1,0 +1,186 @@
+[
+  {
+    "inputs": [
+      "password.n_submit",
+      "unlock-btn.n_clicks"
+    ],
+    "output": "..auth-token.data...unlock-msg.children..",
+    "state": [
+      "password.value"
+    ]
+  },
+  {
+    "inputs": [
+      "compare-select.value"
+    ],
+    "output": "..compare-store.data...compare-graph.figure..",
+    "state": []
+  },
+  {
+    "inputs": [
+      "run-btn.n_clicks"
+    ],
+    "output": "..job-id.data...poll.disabled...progress-text.children@53f59cf6f7eba58d92f45389b089d1f7ad583987894cb074defa5e9a71457e92..",
+    "state": [
+      "auth-token.data",
+      "from-date.value",
+      "horizon.value",
+      "max-obs.value",
+      "method.value",
+      "min-train.value",
+      "most.value",
+      "n-bins.value",
+      "n-perm.value",
+      "rebalance.value",
+      "run-name.value",
+      "standardize.value",
+      "sweep.value",
+      "target.value",
+      "thresh.value",
+      "tickers.value",
+      "to-date.value",
+      "train-window.value",
+      "universe.value",
+      "{\"feature\":[\"ALL\"],\"type\":\"weight\"}.id",
+      "{\"feature\":[\"ALL\"],\"type\":\"weight\"}.value",
+      "{\"group\":[\"ALL\"],\"type\":\"feature-group\"}.value"
+    ]
+  },
+  {
+    "inputs": [
+      "eodhd-fetch-btn.n_clicks"
+    ],
+    "output": "..market-predictions-store.data...market-relevance-store.data...market-info-store.data...eodhd-status.children...eodhd-results.children..",
+    "state": [
+      "eodhd-api-token.value",
+      "eodhd-exchange.value",
+      "eodhd-feature-tickers.value",
+      "eodhd-feature-types.value",
+      "eodhd-from-date.value",
+      "eodhd-horizon.value",
+      "eodhd-target-ticker.value",
+      "eodhd-to-date.value",
+      "eodhd-windows.value",
+      "most-radio.value",
+      "pairwise-check.value",
+      "pct-thresh-radio.value",
+      "thresh-slider.value"
+    ]
+  },
+  {
+    "inputs": [
+      "auth-token.data"
+    ],
+    "output": "..mode-banner.children...lock-panel.children...run-btn.disabled...run-btn.style..",
+    "state": []
+  },
+  {
+    "inputs": [
+      "paper-run-btn.n_clicks"
+    ],
+    "output": "..paper-results-store.data...paper-status.children...paper-results.children..",
+    "state": [
+      "most-radio.value",
+      "paper-api-token.value",
+      "paper-exchange.value",
+      "paper-forward-period.value",
+      "paper-from-date.value",
+      "paper-study-type.value",
+      "paper-tickers.value",
+      "paper-to-date.value",
+      "thresh-slider.value"
+    ]
+  },
+  {
+    "inputs": [
+      "run-btn.n_clicks"
+    ],
+    "output": "..predictions-store.data...relevance-store.data..",
+    "state": [
+      "binary-check.value",
+      "most-radio.value",
+      "obs-data-store.data",
+      "pairwise-check.value",
+      "pct-thresh-radio.value",
+      "pred-data-store.data",
+      "thresh-slider.value"
+    ]
+  },
+  {
+    "inputs": [
+      "poll.n_intervals"
+    ],
+    "output": "..progress-bar.style...progress-text.children...poll.disabled@310033829296c90d2ab287ab220ec1e9d9c958153d1e5efa5c85a93b7906b32e...run-ids.data...run-select.options...run-select.value..",
+    "state": [
+      "job-id.data",
+      "run-select.value"
+    ]
+  },
+  {
+    "inputs": [
+      "tabs.value"
+    ],
+    "output": "..run-select.options@045e3de041e530fea799247797d0dfe9ce2f7c83cb21c3b705aa54d93bf76f37...run-select.value@045e3de041e530fea799247797d0dfe9ce2f7c83cb21c3b705aa54d93bf76f37..",
+    "state": [
+      "run-select.options"
+    ]
+  },
+  {
+    "inputs": [
+      "cancel-btn.n_clicks"
+    ],
+    "output": "job-id.data@252b69c7fe2717e19007cfb1a4d7a84d65a7c13f3cc9c1ecc25386cc5a879d9c",
+    "state": [
+      "auth-token.data",
+      "job-id.data"
+    ]
+  },
+  {
+    "inputs": [
+      "obs-table.data"
+    ],
+    "output": "obs-data-store.data",
+    "state": []
+  },
+  {
+    "inputs": [
+      "pred-table.data"
+    ],
+    "output": "pred-data-store.data",
+    "state": []
+  },
+  {
+    "inputs": [
+      "method.value"
+    ],
+    "output": "relevance-panel.style",
+    "state": []
+  },
+  {
+    "inputs": [
+      "main-tabs.value",
+      "predictions-store.data",
+      "relevance-store.data"
+    ],
+    "output": "tab-content.children",
+    "state": [
+      "obs-data-store.data",
+      "pred-data-store.data"
+    ]
+  },
+  {
+    "inputs": [
+      "universe.value"
+    ],
+    "output": "tickers.value",
+    "state": []
+  },
+  {
+    "inputs": [
+      "method.value",
+      "{\"group\":[\"ALL\"],\"type\":\"feature-group\"}.value"
+    ],
+    "output": "weights-panel.children",
+    "state": []
+  }
+]

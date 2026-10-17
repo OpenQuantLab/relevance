@@ -22,13 +22,8 @@ ALPHA_LAB_DEBUG       "0" to turn off the dev-server debug tools
 
 from __future__ import annotations
 
-import hmac
 import os
-import secrets
-import threading
 import time
-import traceback
-import uuid
 
 import numpy as np
 import pandas as pd
@@ -36,6 +31,42 @@ import plotly.graph_objects as go
 from dash import ALL, Dash, Input, Output, State, callback, dash_table, dcc, html, no_update
 
 from relevance.backtest import lab
+from relevance.webapp.alpha_lab.auth import (
+    LOCKED,
+    grant_session,
+    is_unlocked,
+    password_matches,
+)
+from relevance.webapp.alpha_lab.figures import (
+    fig_bins,
+    fig_drawdown,
+    fig_equity,
+    fig_heatmap,
+    fig_ic,
+    fig_perm,
+    fig_rolling_sharpe,
+    fig_scatter,
+    fig_yearly,
+)
+from relevance.webapp.alpha_lab.jobs import JOBS, job_in_flight, start_job
+from relevance.webapp.alpha_lab.theme import (
+    ACCENT,
+    BG,
+    BLUE,
+    CARD,
+    FONT,
+    INK,
+    INPUT,
+    LABEL,
+    LINE,
+    MUTED,
+    NEG,
+    PLOT_LAYOUT,
+    SECTION,
+    _num,
+    _pct,
+    _positive,
+)
 
 # ---------------------------------------------------------------------------
 # Deployment configuration
@@ -47,180 +78,10 @@ if not URL_PREFIX.startswith("/"):
 if not URL_PREFIX.endswith("/"):
     URL_PREFIX += "/"
 
-_PASSWORD = os.environ.get("ALPHA_LAB_PASSWORD", "")
-LOCKED = bool(_PASSWORD)
-
 # Upper bounds applied to every submitted spec, unlocked or not.
 MAX_TICKERS = 150
 MAX_SWEEP = 8
 MAX_PERM = 2000
-
-_SESSIONS: set = set()
-_SESSION_LOCK = threading.Lock()
-
-
-def grant_session() -> str:
-    token = secrets.token_urlsafe(24)
-    with _SESSION_LOCK:
-        _SESSIONS.add(token)
-    return token
-
-
-def is_unlocked(token) -> bool:
-    if not LOCKED:
-        return True
-    with _SESSION_LOCK:
-        return isinstance(token, str) and token in _SESSIONS
-
-
-def password_matches(candidate) -> bool:
-    return bool(candidate) and hmac.compare_digest(str(candidate), _PASSWORD)
-
-# ---------------------------------------------------------------------------
-# Theme
-# ---------------------------------------------------------------------------
-
-INK = "#16213e"
-ACCENT = "#2a9d8f"
-NEG = "#e07a5f"
-BLUE = "#4361ee"
-MUTED = "#6b7280"
-BG = "#f4f5f7"
-LINE = "#e5e7eb"
-FONT = "'Inter', 'Segoe UI', sans-serif"
-
-CARD = {
-    "backgroundColor": "white",
-    "borderRadius": "12px",
-    "padding": "20px",
-    "boxShadow": "0 1px 3px rgba(0,0,0,0.08)",
-}
-LABEL = {"fontWeight": "600", "fontSize": "12px", "color": INK,
-         "display": "block", "marginBottom": "4px", "marginTop": "14px"}
-SECTION = {"fontSize": "11px", "fontWeight": "700", "letterSpacing": "0.08em",
-           "textTransform": "uppercase", "color": MUTED,
-           "margin": "22px 0 2px 0", "borderTop": f"1px solid {LINE}",
-           "paddingTop": "14px"}
-INPUT = {"width": "100%", "padding": "6px 8px", "fontSize": "13px",
-         "border": f"1px solid {LINE}", "borderRadius": "6px",
-         "boxSizing": "border-box"}
-
-PLOT_LAYOUT = dict(
-    template="plotly_white",
-    font=dict(family=FONT, size=12, color=INK),
-    margin=dict(l=55, r=20, t=78, b=40),
-    hovermode="x unified",
-    legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0),
-    title=dict(x=0, xanchor="left", y=0.97, yanchor="top",
-               font=dict(size=15)),
-)
-
-
-def _pct(x, digits=1):
-    return "–" if x is None or not np.isfinite(x) else f"{x * 100:.{digits}f}%"
-
-
-def _num(x, digits=2):
-    return "–" if x is None or not np.isfinite(x) else f"{x:.{digits}f}"
-
-
-def _positive(x) -> bool | None:
-    """True/False for colouring a metric, None when the value is missing."""
-    if x is None or not np.isfinite(x):
-        return None
-    return bool(x > 0)
-
-
-# ---------------------------------------------------------------------------
-# Background job manager
-# ---------------------------------------------------------------------------
-
-class Job:
-    def __init__(self, specs: list[lab.SignalSpec], n_perm: int):
-        self.id = uuid.uuid4().hex[:12]
-        self.specs = specs
-        self.n_perm = n_perm
-        self.status = "running"          # running | done | error | cancelled
-        self.stage = "Loading prices…"
-        self.step = 0
-        self.total = 0
-        self.spec_index = 0
-        self.run_ids: list[str] = []
-        self.error: str | None = None
-        self.cancelled = False
-
-    @property
-    def fraction(self) -> float:
-        per_spec = 1 / len(self.specs)
-        inner = (self.step / self.total) if self.total else 0.0
-        return min(1.0, self.spec_index * per_spec + inner * per_spec)
-
-
-JOBS: dict[str, Job] = {}
-_JOB_LOCK = threading.Lock()
-
-
-def _run_job(job: Job) -> None:
-    try:
-        for i, spec in enumerate(job.specs):
-            if job.cancelled:
-                break
-            job.spec_index = i
-            job.step, job.total = 0, 0
-            job.stage = f"[{i + 1}/{len(job.specs)}] loading prices…"
-            prices = lab.load_prices(spec)
-
-            job.stage = f"[{i + 1}/{len(job.specs)}] building panel…"
-            panel = lab.build_panel(prices, spec)
-
-            def progress(step, total, when, _i=i):
-                job.step, job.total = step, total
-                job.stage = (f"[{_i + 1}/{len(job.specs)}] "
-                             f"backtesting {when} ({step}/{total})")
-
-            t0 = time.time()
-            results = lab.run_backtest(
-                panel, spec, progress=progress,
-                should_cancel=lambda: job.cancelled,
-            )
-            if job.cancelled:
-                break
-
-            job.stage = f"[{i + 1}/{len(job.specs)}] evaluating…"
-            report = lab.evaluate(results, spec, n_perm=job.n_perm)
-            summary = dict(report["summary"])
-            if report["perm"]:
-                summary["p_ic"] = report["perm"]["p_ic"]
-                summary["p_sharpe"] = report["perm"]["p_sharpe"]
-            job.run_ids.append(
-                lab.save_run(spec, results, summary,
-                             elapsed=time.time() - t0, perm=report["perm"])
-            )
-        job.status = "cancelled" if job.cancelled else "done"
-        job.stage = ("Cancelled." if job.cancelled
-                     else f"Finished {len(job.run_ids)} run(s).")
-    except Exception as exc:                      # surfaced in the UI
-        job.status = "error"
-        job.error = f"{type(exc).__name__}: {exc}"
-        job.stage = "Failed."
-        traceback.print_exc()
-
-
-def start_job(specs: list[lab.SignalSpec], n_perm: int) -> Job:
-    job = Job(specs, n_perm)
-    with _JOB_LOCK:
-        JOBS[job.id] = job
-        for old in [k for k, v in JOBS.items()
-                    if v.status != "running" and k != job.id][:-10]:
-            JOBS.pop(old, None)
-    threading.Thread(target=_run_job, args=(job,), daemon=True).start()
-    return job
-
-
-def job_in_flight() -> bool:
-    with _JOB_LOCK:
-        return any(j.status == "running" for j in JOBS.values())
-
 
 # ---------------------------------------------------------------------------
 # Designer sidebar
@@ -412,145 +273,6 @@ def designer():
             ]),
         ],
     )
-
-
-# ---------------------------------------------------------------------------
-# Figures
-# ---------------------------------------------------------------------------
-
-def fig_equity(ls: pd.DataFrame) -> go.Figure:
-    fig = go.Figure()
-    series = [("cum_long_short", "Long / short", INK, 2.5),
-              ("cum_long", "Long bin", ACCENT, 1.5),
-              ("cum_short", "Short bin", NEG, 1.5),
-              ("cum_benchmark", "Equal-weight universe", MUTED, 1.5)]
-    for col, name, color, width in series:
-        fig.add_trace(go.Scatter(
-            x=ls.index, y=ls[col], name=name, mode="lines",
-            line=dict(color=color, width=width,
-                      dash="dot" if name.endswith("universe") else "solid")))
-    fig.update_layout(**PLOT_LAYOUT, title_text="Cumulative return",
-                      yaxis_tickformat=".0%", height=400)
-    return fig
-
-
-def fig_drawdown(ls: pd.DataFrame) -> go.Figure:
-    wealth = 1 + ls["cum_long_short"]
-    dd = wealth / wealth.cummax() - 1
-    fig = go.Figure(go.Scatter(x=dd.index, y=dd, fill="tozeroy", mode="lines",
-                               line=dict(color=NEG, width=1),
-                               name="Drawdown"))
-    fig.update_layout(**PLOT_LAYOUT, title_text="Long/short drawdown",
-                      yaxis_tickformat=".0%", height=280)
-    return fig
-
-
-def fig_ic(ic: pd.Series, window: int = 12) -> go.Figure:
-    colors = [ACCENT if v >= 0 else NEG for v in ic.fillna(0)]
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=ic.index, y=ic, marker_color=colors,
-                         name="Period IC"))
-    fig.add_trace(go.Scatter(x=ic.index, y=ic.rolling(window).mean(),
-                             mode="lines", name=f"{window}-period mean",
-                             line=dict(color=INK, width=2)))
-    fig.add_hline(y=float(ic.mean()), line_dash="dash", line_color=BLUE,
-                  annotation_text=f"mean {ic.mean():.3f}")
-    fig.update_layout(**PLOT_LAYOUT, title_text="Information coefficient",
-                      height=340)
-    return fig
-
-
-def fig_bins(prof: pd.DataFrame) -> go.Figure:
-    colors = [ACCENT if v >= 0 else NEG for v in prof["mean"]]
-    fig = go.Figure(go.Bar(x=prof["label"], y=prof["mean"],
-                           marker_color=colors,
-                           text=[f"{v * 100:.2f}%" for v in prof["mean"]],
-                           textposition="outside",
-                           customdata=prof["count"],
-                           hovertemplate="%{x}: %{y:.2%}<br>n=%{customdata}"))
-    layout = {**PLOT_LAYOUT, "hovermode": "closest"}
-    fig.update_layout(**layout,
-                      title_text="Mean forward return by predicted bin",
-                      yaxis_tickformat=".1%", height=340)
-    return fig
-
-
-def fig_rolling_sharpe(ls: pd.DataFrame, ppy: int, window: int = 24
-                       ) -> go.Figure:
-    r = ls["long_short"]
-    roll = r.rolling(window).mean() / r.rolling(window).std() * np.sqrt(ppy)
-    fig = go.Figure(go.Scatter(x=roll.index, y=roll, mode="lines",
-                               line=dict(color=BLUE, width=2),
-                               name="Rolling Sharpe"))
-    fig.add_hline(y=0, line_color=MUTED, line_width=1)
-    fig.update_layout(**PLOT_LAYOUT,
-                      title_text=f"Rolling {window}-period Sharpe", height=300)
-    return fig
-
-
-def fig_yearly(yearly: pd.DataFrame) -> go.Figure:
-    colors = [ACCENT if v >= 0 else NEG for v in yearly["ls_total"]]
-    fig = go.Figure(go.Bar(x=yearly["year"], y=yearly["ls_total"],
-                           marker_color=colors,
-                           text=[f"{v * 100:.0f}%" for v in yearly["ls_total"]],
-                           textposition="outside"))
-    layout = {**PLOT_LAYOUT, "hovermode": "closest"}
-    fig.update_layout(**layout,
-                      title_text="Long/short return by calendar year",
-                      yaxis_tickformat=".0%", height=320)
-    return fig
-
-
-def fig_scatter(results: pd.DataFrame) -> go.Figure:
-    valid = results.dropna(subset=["predicted", "actual"]).copy()
-    valid["pred_rank"] = valid.groupby("date")["predicted"].rank(pct=True)
-    sample = valid.sample(min(4000, len(valid)), random_state=0)
-    fig = go.Figure(go.Scattergl(
-        x=sample["pred_rank"], y=sample["actual"], mode="markers",
-        marker=dict(size=4, color=BLUE, opacity=0.35),
-        name="Observations",
-        hovertemplate="rank %{x:.2f} → %{y:.2%}<extra></extra>"))
-    binned = valid.groupby(pd.cut(valid["pred_rank"], 20),
-                           observed=False)["actual"].mean()
-    centers = [iv.mid for iv in binned.index]
-    fig.add_trace(go.Scatter(x=centers, y=binned.to_numpy(), mode="lines+markers",
-                             line=dict(color=INK, width=2.5),
-                             name="Binned mean"))
-    layout = {**PLOT_LAYOUT, "hovermode": "closest"}
-    fig.update_layout(**layout, title_text="Predicted rank vs realised return",
-                      xaxis_title="Cross-sectional rank of prediction",
-                      yaxis_tickformat=".0%", height=380)
-    return fig
-
-
-def fig_perm(perm: dict) -> go.Figure:
-    fig = go.Figure(go.Histogram(x=perm.get("null_sharpe_dist", []),
-                                 marker_color=LINE, name="Null"))
-    fig.add_vline(x=perm["obs_sharpe"], line_color=NEG, line_width=2,
-                  annotation_text=f"observed {perm['obs_sharpe']:.2f}")
-    layout = {**PLOT_LAYOUT, "hovermode": "closest"}
-    fig.update_layout(**layout, height=300,
-                      title_text=(f"Permutation null for L/S Sharpe "
-                                  f"(p = {perm['p_sharpe']:.3f})"))
-    return fig
-
-
-def fig_heatmap(ls: pd.DataFrame) -> go.Figure:
-    df = pd.DataFrame({"r": ls["long_short"]})
-    df["year"] = df.index.year
-    pivot = df.pivot_table(index="year", columns=df.index.month,
-                           values="r", aggfunc="mean")
-    pivot.columns = [pd.Timestamp(2000, m, 1).strftime("%b")
-                     for m in pivot.columns]
-    fig = go.Figure(go.Heatmap(
-        z=pivot.to_numpy(), x=list(pivot.columns), y=list(pivot.index),
-        colorscale=[[0, NEG], [0.5, "#ffffff"], [1, ACCENT]], zmid=0,
-        hovertemplate="%{y} %{x}: %{z:.2%}<extra></extra>",
-        colorbar=dict(tickformat=".0%")))
-    layout = {**PLOT_LAYOUT, "hovermode": "closest"}
-    fig.update_layout(**layout, title_text="Long/short return by period",
-                      height=max(260, 28 * len(pivot) + 120))
-    return fig
 
 
 # ---------------------------------------------------------------------------

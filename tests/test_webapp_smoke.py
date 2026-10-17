@@ -34,10 +34,10 @@ def _component_ids(node, found=None):
     return found
 
 
-def _callback_signature(app):
+def _callback_signature(callback_map):
     """Stable description of every registered callback."""
     out = []
-    for key, spec in app.callback_map.items():
+    for key, spec in callback_map.items():
         inputs = sorted(
             f"{i['id']}.{i['property']}"
             for i in spec.get("inputs", [])
@@ -83,12 +83,18 @@ def test_demo_layout_ids(demo_app, snapshot):
     snapshot("webapp_demo_layout_ids", sorted(_component_ids(demo_app.app.layout)))
 
 
-def test_alpha_lab_callbacks(alpha_lab_app, snapshot):
-    snapshot("webapp_alpha_lab_callbacks", _callback_signature(alpha_lab_app.app))
+def test_callback_inventory(alpha_lab_app, demo_app, snapshot):
+    """
+    Both dashboards register via the module-level ``@callback`` decorator, so
+    the callbacks land in Dash's global registry rather than on the Dash
+    instance (``app.callback_map`` stays empty). The registry is shared, so
+    this is a combined inventory across both apps.
+    """
+    import dash._callback as dash_callback
 
-
-def test_demo_callbacks(demo_app, snapshot):
-    snapshot("webapp_demo_callbacks", _callback_signature(demo_app.app))
+    registry = dash_callback.GLOBAL_CALLBACK_MAP
+    assert registry, "no callbacks registered - the apps did not wire up"
+    snapshot("webapp_callbacks", _callback_signature(registry))
 
 
 def test_alpha_lab_figure_builders(alpha_lab_app, prices, tickers):
